@@ -485,7 +485,7 @@ def dashboard():
             print(f"Registros coincidentes para hoy: {len(registros_hoy)}", flush=True)
             
             confirmadas_hoy = sum(1 for r in registros_hoy if r.get('estado_accion') == 'cita_confirmada')
-            canceladas_hoy = sum(1 for r in registros_hoy if r.get('estado_accion') == 'cita_reagendada')
+            canceladas_hoy = sum(1 for r in registros_hoy if r.get('estado_accion') in ['cita_cancelada', 'cita_reagendada'])
 
             # 3. Calcular encuestas y satisfacción dentro del ciclo mensual
             encuestas_ciclo = [r for r in registros_ciclo if r.get('estado_accion') == 'encuesta_calificacion' and r.get('calificacion') is not None]
@@ -1115,7 +1115,7 @@ def procesar_webhook_asincrono(data):
                     if doc:
                         doc_cal_id = doc.get("calendar_id")
                         try:
-                            zona_mexico = pytz.timezone('America/Mexico_City'
+                            zona_mexico = pytz.timezone('America/Mexico_City')
                             
                             supabase.table('metricas_y_registros').insert({
                                 'calendar_id': doc_cal_id,
