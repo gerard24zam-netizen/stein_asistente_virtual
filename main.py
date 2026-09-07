@@ -769,14 +769,13 @@ def procesar_desde_supabase():
 
                     if supabase:
                         try:
-                            supabase.table("citas_procesadas").insert({
-                                "calendar_id": cal_id,
-                                "telefono_client": telefono_paciente,
-                                "estado": "enviada",
-                                "fecha": start_dt if start_dt else str(datetime.now())
+                            supabase.table('metricas_y_registros').insert({
+                                'calendar_id': cal_id,
+                                'estado_accion': 'mensaje_enviado',
+                                'confirmado': False
                             }).execute()
                         except Exception as ex:
-                            log(f"Error guardando cita procesada en Supabase: {ex}")
+                            log(f"Error guardando métrica de mensaje diario en Supabase: {ex}")
 
     return jsonify({"status": "ok", "enviados": total_enviados}), 200
 
@@ -1116,19 +1115,13 @@ def procesar_webhook_asincrono(data):
                     if doc:
                         doc_cal_id = doc.get("calendar_id")
                         try:
-                            zona_mexico = pytz.timezone('America/Mexico_City')
-                            hoy_str = datetime.now(zona_mexico).date().isoformat()
-                            
-                            supabase.table('encuestas').insert({
-                                'calendar_id': doc_cal_id,
-                                'calificacion': calificacion,
-                                'fecha': hoy_str
-                            }).execute()
+                            zona_mexico = pytz.timezone('America/Mexico_City'
                             
                             supabase.table('metricas_y_registros').insert({
                                 'calendar_id': doc_cal_id,
                                 'estado_accion': 'encuesta_calificacion',
                                 'calificacion': calificacion
+                                'confirmado': False
                             }).execute()
                             
                             log(f"Encuesta registrada: {calificacion} para calendar_id: {doc_cal_id}")
