@@ -494,7 +494,8 @@ def dashboard():
                 total_cal = sum(float(r['calificacion']) for r in encuestas_ciclo)
                 promedio = round(total_cal / cantidad_encuestas, 1)
 
-           # 4. Cálculo de consumo de Meta y Modelo de Precios por Niveles (Tiers)
+           
+            # 4. Cálculo de consumo de Meta y Modelo de Precios por Niveles (Tiers)
             total_mensajes_facturables = sum(1 for r in registros_ciclo if r.get('estado_accion') == 'mensaje_enviado')
             
             # El plan lo define el usuario manualmente en su configuración guardado
