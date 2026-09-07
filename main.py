@@ -497,19 +497,21 @@ def dashboard():
            # 4. Cálculo de consumo de Meta y Modelo de Precios por Niveles (Tiers)
             total_mensajes_facturables = sum(1 for r in registros_ciclo if r.get('estado_accion') == 'mensaje_enviado')
             
-            COSTO_META_UNITARIO = 0.45  # Lo que te cuesta internamente cada mensaje en Meta (MXN)
-            costo_base_meta = total_mensajes_facturables * COSTO_META_UNITARIO
-
-            # Definición de tu esquema comercial por rangos de citas:
-            if total_mensajes_facturables <= 29:
-                # Esquema por evento para bajo volumen (ej. $15 por cita enviada)
-                precio_final_cliente = total_mensajes_facturables * 15.0
-            elif 30 <= total_mensajes_facturables <= 60:
-                # Rango Estándar (30 a 60 citas)
-                precio_final_cliente = 350.0
+            # El plan lo define el usuario manualmente en su configuración guardada
+            plan_seleccionado = user.get('plan', 'comisionista')
+            
+            if plan_seleccionado == 'comisionista':
+                nombre_plan = "Comisionista"
+                precio_final = total_mensajes_facturables * 15.0
+            elif plan_seleccionado == 'profesional':
+                nombre_plan = "Profesional"
+                precio_final = 350.0  # O la cuota fija establecida
+            elif plan_seleccionado == 'v_plus':
+                nombre_plan = "V. Plus"
+                precio_final = 500.0  # O la cuota fija establecida
             else:
-                # Rango Alto (61 en adelante, con tope operativo sugerido en 250 citas)
-                precio_final_cliente = 500.0
+                nombre_plan = "Comisionista"
+                precio_final = total_mensajes_facturables * 15.0
 
     except Exception as e:
         import traceback
@@ -524,7 +526,7 @@ def dashboard():
         "promedio_satisfaccion": f"{promedio} / 10",
         "total_encuestas": cantidad_encuestas,
         "mensajes_facturables": total_mensajes_facturables,
-        "costo_meta": round(costo_base_meta, 2),
+        "nombre_plan": nombre_plan,
         "precio_sugerido": round(precio_final_cliente, 2)
     }
 
