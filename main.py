@@ -496,7 +496,7 @@ def dashboard():
 
            
             # 4. Cálculo de consumo de Meta y Modelo de Precios por Niveles (Tiers)
-            total_mensajes_facturables = sum(1 for r in registros_ciclo if r.get('estado_accion') == 'mensaje_enviado')
+            total_mensajes_facturables = len(registros_ciclo)
             
             # El plan lo define el usuario manualmente en su configuración guardado
             plan_seleccionado = user_data.get('plan_seleccionado') or user_data.get('plan', 'comisionista')
