@@ -498,7 +498,7 @@ def dashboard():
             total_mensajes_facturables = sum(1 for r in registros_ciclo if r.get('estado_accion') == 'mensaje_enviado')
             
             # El plan lo define el usuario manualmente en su configuración guardado
-            plan_seleccionado = user.get('plan_seleccionado') or user.get('plan', 'comisionista')
+            plan_seleccionado = user_data.get('plan_seleccionado') or user_data.get('plan', 'comisionista')
             
             if plan_seleccionado == 'comisionista':
                 nombre_plan = "Comisionista"
