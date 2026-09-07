@@ -131,7 +131,7 @@ def enviar_recordatorios_hora():
                 dt_cita = datetime.fromisoformat(start_dt).astimezone(zona_mexico)
                 diferencia_minutos = (dt_cita - ahora).total_seconds() / 60
 
-                if 50 <= diferencia_minutos <= 70:
+                if 30 <= diferencia_minutos <= 70:
                     titulo = evento.get('summary', '')
                     if "✅" in titulo or "❌" in titulo or "cancelado" in titulo.lower() or "⏰" in titulo:
                         continue
