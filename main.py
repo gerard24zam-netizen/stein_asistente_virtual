@@ -1120,7 +1120,7 @@ def procesar_webhook_asincrono(data):
                             supabase.table('metricas_y_registros').insert({
                                 'calendar_id': doc_cal_id,
                                 'estado_accion': 'encuesta_calificacion',
-                                'calificacion': calificacion
+                                'calificacion': calificacion,
                                 'confirmado': False
                             }).execute()
                             
