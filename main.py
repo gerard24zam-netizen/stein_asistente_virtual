@@ -1088,7 +1088,59 @@ def procesar_webhook_asincrono(data):
                     return
             
             if any(k in texto for k in ["sí, confirmar", "confirmar", "si"]):
-                doc, nombre_paciente = marcar_evento_calendario(telefono_cliente, 'confirmar')
+                # --- SUSTITUIMOS SOLO LA BÚSQUEDA CIEGA POR DESAMBIGUACIÓN INTELIGENTE ---
+                zona_mexico = pytz.timezone('America/Mexico_City')
+                ahora = datetime.now(zona_mexico)
+                inicio_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
+                fin_dia = ahora.replace(hour=23, minute=59, second=59, microsecond=0).astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
+                telefono_10 = telefono_cliente[-10:]
+
+                doc = None
+                nombre_paciente = ""
+                citas_encontradas = []
+
+                res_docs = supabase.table("Doctores").select("*").execute()
+                for d in (res_docs.data or []):
+                    c_id = d.get("calendar_id") or d.get("email")
+                    if not c_id: continue
+                    cal_serv = obtener_servicio_calendar_por_doctor(c_id)
+                    if not cal_serv: continue
+                    try:
+                        evs = cal_serv.events().list(calendarId=c_id, timeMin=inicio_dia, timeMax=fin_dia, singleEvents=True).execute().get('items', [])
+                        for ev in evs:
+                            t_ev = f"{ev.get('summary', '')} {ev.get('description', '')}"
+                            # 1. Validar que sea el teléfono correcto
+                            if telefono_10 in "".join(filter(str.isdigit, t_ev)):
+                                sum_actual = ev.get('summary', '')
+                                # 2. FILTRO DE SEGURIDAD CLAVE: Si la cita ya tiene ✅ o ❌, 
+                                # la ignoramos para evitar sobreescrituras o confusiones con citas pasadas del día.
+                                if '✅' in sum_actual or '❌' in sum_actual:
+                                    continue
+
+                                st_dt = ev.get('start', {}).get('dateTime')
+                                if st_dt:
+                                    dt_c = datetime.fromisoformat(st_dt).astimezone(zona_mexico)
+                                    citas_encontradas.append({"doc": d, "evento": ev, "cal_id": c_id, "dt": dt_c})
+                    except Exception:
+                        pass
+
+                if citas_encontradas:
+                    mas_cercana = min(citas_encontradas, key=lambda x: abs((x["dt"] - ahora).total_seconds()))
+                    doc = mas_cercana["doc"]
+                    cal_id_encontrado = mas_cercana["cal_id"]
+                    evento_encontrado = mas_cercana["evento"]
+                    
+                    sum_act = evento_encontrado.get('summary', '')
+                    nombre_paciente = extraer_nombre_limpio(sum_act) if 'extraer_nombre_limpio' in globals() else sum_act
+                # ------------------------------------------------------------------------
+                    cal_serv_obj = obtener_servicio_calendar_por_doctor(cal_id_encontrado)
+                    limpio_sum = sum_act.replace('✅', '').replace('❌', '').strip()
+                    cal_serv_obj.events().patch(
+                        calendarId=cal_id_encontrado,
+                        eventId=evento_encontrado['id'],
+                        body={'summary': f"✅ {limpio_sum}"}
+                    ).execute()
+                    
                 if doc:
                     doc_nombre = doc.get("name") or doc.get("nombre") or "Doctor"
                     doc_cal_id = doc.get("calendar_id")
@@ -1110,9 +1162,62 @@ def procesar_webhook_asincrono(data):
                     tel_doc = "".join(filter(str.isdigit, str(wa_link)))
                     if tel_doc:
                         enviar_mensaje(tel_doc, "text", contenido=f"✅ El paciente *{nombre_paciente}* ha confirmado su cita de hoy.")
-
+              
+            # ----------------------------------------------------------------------------------
+            
             elif any(k in texto for k in ["no", "reagendar", "cancelar"]):
-                doc, nombre_paciente = marcar_evento_calendario(telefono_cliente, 'reagendar')
+                # --- SUSTITUIMOS SOLO LA BÚSQUEDA CIEGA POR DESAMBIGUACIÓN INTELIGENTE ---
+                zona_mexico = pytz.timezone('America/Mexico_City')
+                ahora = datetime.now(zona_mexico)
+                inicio_dia = ahora.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
+                fin_dia = ahora.replace(hour=23, minute=59, second=59, microsecond=0).astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
+                telefono_10 = telefono_cliente[-10:]
+
+                doc = None
+                nombre_paciente = ""
+                citas_encontradas = []
+
+                res_docs = supabase.table("Doctores").select("*").execute()
+                for d in (res_docs.data or []):
+                    c_id = d.get("calendar_id") or d.get("email")
+                    if not c_id: continue
+                    cal_serv = obtener_servicio_calendar_por_doctor(c_id)
+                    if not cal_serv: continue
+                    try:
+                        evs = cal_serv.events().list(calendarId=c_id, timeMin=inicio_dia, timeMax=fin_dia, singleEvents=True).execute().get('items', [])
+                        for ev in evs:
+                            t_ev = f"{ev.get('summary', '')} {ev.get('description', '')}"
+                            if telefono_10 in "".join(filter(str.isdigit, t_ev)):
+                                sum_actual = ev.get('summary', '')
+                                # 2. FILTRO DE SEGURIDAD CLAVE: Si la cita ya tiene ✅ o ❌, 
+                                # la ignoramos para evitar sobreescrituras o confusiones con citas pasadas del día.
+                                if '✅' in sum_actual or '❌' in sum_actual:
+                                    continue
+
+                                st_dt = ev.get('start', {}).get('dateTime')
+                                if st_dt:
+                                    dt_c = datetime.fromisoformat(st_dt).astimezone(zona_mexico)
+                                    citas_encontradas.append({"doc": d, "evento": ev, "cal_id": c_id, "dt": dt_c})
+                    except Exception:
+                        pass
+
+                if citas_encontradas:
+                    mas_cercana = min(citas_encontradas, key=lambda x: abs((x["dt"] - ahora).total_seconds()))
+                    doc = mas_cercana["doc"]
+                    cal_id_encontrado = mas_cercana["cal_id"]
+                    evento_encontrado = mas_cercana["evento"]
+                    
+                    sum_act = evento_encontrado.get('summary', '')
+                    nombre_paciente = extraer_nombre_limpio(sum_act) if 'extraer_nombre_limpio' in globals() else sum_act
+
+                    cal_serv_obj = obtener_servicio_calendar_por_doctor(cal_id_encontrado)
+                    limpio_sum = sum_act.replace('✅', '').replace('❌', '').strip()
+                    cal_serv_obj.events().patch(
+                        calendarId=cal_id_encontrado,
+                        eventId=evento_encontrado['id'],
+                        body={'summary': f"❌ {limpio_sum}"}
+                    ).execute()
+                # ------------------------------------------------------------------------
                 if doc:
                     doc_nombre = doc.get("name") or doc.get("nombre") or "Doctor"
                     doc_cal_id = doc.get("calendar_id")
