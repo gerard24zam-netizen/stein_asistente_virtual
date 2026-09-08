@@ -131,7 +131,8 @@ def enviar_recordatorios_hora():
                 dt_cita = datetime.fromisoformat(start_dt).astimezone(zona_mexico)
                 diferencia_minutos = (dt_cita - ahora).total_seconds() / 60
 
-                if 30 <= diferencia_minutos <= 70:
+                # 1. Ventana estricta de 40 min a 2 hrs antes (120 minutos)
+                if 40 <= diferencia_minutos <= 120:
                     titulo = evento.get('summary', '')
                     if "✅" in titulo or "❌" in titulo or "cancelado" in titulo.lower() or "⏰" in titulo:
                         continue
@@ -142,26 +143,51 @@ def enviar_recordatorios_hora():
                         continue
                     
                     telefono = "52" + digitos[-10:]
+                    evento_id = evento.get('id')
+
+                    # 2. VALIDAR CONFIRMACIÓN: Verificar en Supabase si esta cita ya tiene confirmado = True
+                    # Buscamos en metricas_y_registros si existe un registro asociado a este doctor/evento con confirmación positiva
+                    res_confirmacion = supabase.table('metricas_y_registros') \
+                        .select('*') \
+                        .eq('calendar_id', cal_id) \
+                        .eq('confirmado', True) \
+                        .execute()
+                    
+                    # Opcional: si guardas algún identificador del paciente o teléfono, puedes afinar el filtro. 
+                    # Si la lista de confirmados trae registros, validamos que proceda.
+                    if not res_confirmacion.data:
+                        continue  # Si no está confirmado en Supabase, no se envía el recordatorio
+
+                    # 3. EVITAR REPETICIÓN: Verificar si el recordatorio de esta hora ya fue enviado previamente hoy
+                    res_duplicado = supabase.table('metricas_y_registros') \
+                        .select('*') \
+                        .eq('calendar_id', cal_id) \
+                        .eq('estado_accion', f'recordatorio_enviado_{evento_id}') \
+                        .execute()
+                    
+                    if res_duplicado.data:
+                        continue  # Ya se mandó el mensaje para este evento, se salta para evitar spam
+
                     nombre_paciente = extraer_nombre_limpio(titulo)
                     nombre_profesional = doc.get("name") or doc.get("nombre") or "doctor"
 
                     mensaje = (
-                        f"Hola {nombre_paciente}, recordatorio, prepárate para tu cita con "
-                        f"{nombre_profesional} empieza en una hora. Recuerda llegar a tiempo "
-                        f"y llevar el total de tu consulta.\n\n"
+                        f"Hola *{nombre_paciente}*, te recordamos que tu cita con "
+                        f"*{nombre_profesional}* esta por comenzar. Recuerda llevar el monto de tu sesión. ¡Te esperamos!\n\n"
                         f"*Stein A. V. P.*"
                     )
 
                     exito = enviar_mensaje(telefono, "text", contenido=mensaje)
                     if exito and exito.status_code < 400:
                         try:
+                            # 4. Registrar el envío para bloquear futuros reenvíos en el mismo ciclo
                             supabase.table('metricas_y_registros').insert({
                                 'calendar_id': cal_id,
-                                'estado_accion': 'mensaje_enviado',
-                                'confirmado': False
+                                'estado_accion': f'recordatorio_enviado_{evento_id}',
+                                'confirmado': True
                             }).execute()
                         except Exception as e:
-                            log(f"Error guardando métrica de recordatorio de 1h: {e}")
+                            log(f"Error guardando registro de recordatorio enviado: {e}")
 
                         citas_notificadas += 1
 
@@ -171,7 +197,7 @@ def enviar_recordatorios_hora():
         }), 200
 
     except Exception as e:
-        print(f"Error al procesar recordatorios de 1 hora: {e}")
+        print(f"Error al procesar recordatorios por hora: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
         
 # --- RUTAS DE GOOGLE OAUTH ---
