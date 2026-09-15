@@ -501,26 +501,33 @@ def dashboard():
             for r in registros:
                 print(f"BD Registro -> Creado: '{r.get('created_at')}' | Estado/Acción: '{r.get('estado_accion')}'", flush=True)
             print(f"Hoy string buscado: '{hoy_str}'", flush=True)
+            
+            # Definir exactamente qué acciones SÍ generan un cobro/mensaje facturable
+            acciones_facturables = ['mensaje_enviado', 'encuesta_calificacion']
 
-            # Filtrar registros del ciclo mensual actual
-            registros_ciclo = [r for r in registros if str(r.get('created_at', '')) >= inicio_mes_str]
+            # Filtrar registros válidos del ciclo mensual actual (excluyendo logs internos y acciones de pacientes)
+            registros_ciclo = [
+                r for r in registros 
+                if str(r.get('created_at', '')) >= inicio_mes_str 
+                and r.get('estado_accion') in acciones_facturables
+            ]
+            
             enviadas_mes = len(registros_ciclo)
 
-            # Filtrar registros del día de hoy
+            # Filtrar registros del día de hoy (para métricas visuales del día)
             registros_hoy = [r for r in registros if str(r.get('created_at', '')).startswith(hoy_str)]
             print(f"Registros coincidentes para hoy: {len(registros_hoy)}", flush=True)
             
             confirmadas_hoy = sum(1 for r in registros_hoy if r.get('estado_accion') == 'cita_confirmada')
             canceladas_hoy = sum(1 for r in registros_hoy if r.get('estado_accion') in ['cita_cancelada', 'cita_reagendada'])
 
-            # 3. Calcular encuestas y satisfacción dentro del ciclo mensual
+            # 3. Calcular encuestas y satisfacción dentro del ciclo mensual limpio
             encuestas_ciclo = [r for r in registros_ciclo if r.get('estado_accion') == 'encuesta_calificacion' and r.get('calificacion') is not None]
             cantidad_encuestas = len(encuestas_ciclo)
             if cantidad_encuestas > 0:
                 total_cal = sum(float(r['calificacion']) for r in encuestas_ciclo)
                 promedio = round(total_cal / cantidad_encuestas, 1)
 
-           
             # 4. Cálculo de consumo de Meta y Modelo de Precios por Niveles (Tiers)
             total_mensajes_facturables = len(registros_ciclo)
             
