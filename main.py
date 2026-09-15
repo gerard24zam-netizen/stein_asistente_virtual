@@ -779,7 +779,16 @@ def procesar_desde_supabase():
             continue
 
         try:
-            eventos = calendario.events().list(calendarId=cal_id, ...)
+            eventos = calendario.events().list(
+                calendarId=cal_id, 
+                timeMin=inicio, 
+                timeMax=fin, 
+                singleEvents=True, 
+                orderBy='startTime'
+            ).execute().get('items', [])
+        except Exception as e:
+            log(f"Error leyendo calendario {cal_id}: {e}")
+            continue)
 
         if es_fecha_excepcion and not es_dia_laboral_normal:
             fechas_pendientes = [f.strip() for f in trabajar_fechas_str.split(",") if f.strip() and f.strip() != fecha_hoy]
