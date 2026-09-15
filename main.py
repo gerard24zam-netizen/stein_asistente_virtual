@@ -55,6 +55,44 @@ def obtener_servicio_calendar_por_doctor(calendar_id):
 def limpiar_telefono(tel):
     return "".join(filter(str.isdigit, str(tel)))[-10:]
 
+def verificar_candado_permite_envio(calendar_id):
+    # 1. Consultar el plan seleccionado del doctor en Supabase
+    res_doc = supabase.table('Doctores').select('plan_seleccionado, plan').eq('calendar_id', calendar_id).execute()
+    if not res_doc.data:
+        return False, "Doctor no encontrado"
+    
+    doc_info = res_doc.data[0]
+    plan = doc_info.get('plan_seleccionado') or doc_info.get('plan', 'comisionista')
+    
+    # El plan Comisionista NO tiene candado de bloqueo (pago por uso libre)
+    if plan == 'comisionista':
+        return True, "Permitido"
+
+    # Definir los topes estrictos para los planes fijos
+    limites = {
+        'profesional': 60,   # Hasta 60 citas
+        'v_plus': 125        # Hasta 125 citas
+    }
+    limite_maximo = limites.get(plan, 60)
+
+    # 2. Contar los mensajes facturables en el mes actual desde metricas_y_registros
+    mes_actual = datetime.now().strftime('%Y-%m') # Formato 'YYYY-MM'
+    
+    res_historial = supabase.table('metricas_y_registros') \
+        .select('*', count='exact') \
+        .eq('calendar_id', calendar_id) \
+        .in_('estado_accion', ['mensaje_enviado', 'encuesta_calificacion']) \
+        .gte('created_at', f"{mes_actual}-01") \
+        .execute()
+    
+    citas_enviadas_mes = res_historial.count or 0
+
+    # 3. Aplicar el candado si se alcanzó el tope del plan
+    if citas_enviadas_mes >= limite_maximo:
+        return False, f"Candado activado: Has alcanzado el límite de {limite_maximo} citas de tu plan este mes. El asistente se ha pausado."
+    
+    return True, "Permitido"
+
 def extraer_nombre_limpio(titulo):
     titulo_limpio = titulo.replace(' ✅', '').replace(' ❌', '').replace('✅', '').replace('❌', '').strip()
     palabras = [p for p in titulo_limpio.split() if not p.isdigit()]
@@ -714,6 +752,15 @@ def procesar_desde_supabase():
         doc_ocupacion = doc.get("ocupation") or "Atención Psicológica"
         wa_link = doc.get("wa_link") or doc.get("link") or ""
         tel_doc = "".join(filter(str.isdigit, str(wa_link)))
+
+        # >>> CANDADO <<<
+        permiso_candado, mensaje_candado = verificar_candado_permite_envio(cal_id)
+        if not permiso_candado:
+            log(f"Candado activo para {cal_id}: {mensaje_candado}")
+            continue
+
+        try:
+            eventos = calendario.events().list(calendarId=cal_id, ...)
 
         if es_fecha_excepcion and not es_dia_laboral_normal:
             fechas_pendientes = [f.strip() for f in trabajar_fechas_str.split(",") if f.strip() and f.strip() != fecha_hoy]
