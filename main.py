@@ -570,24 +570,28 @@ def dashboard():
     
     return render_template('dashboard.html', user=user_data, datos=metricas)
 
-# 1. Agrega esta nueva ruta en tu main.py para guardar el plan que el doctor elija en el selector
 @app.route('/actualizar-plan', methods=['POST'])
 def actualizar_plan():
     if 'usuario_web' not in session and 'user_id' not in session:
         return jsonify({"status": "error", "message": "No autorizado"}), 401
     
     doctor_actual = session.get('user_id') or session.get('usuario_web')
-    calendar_id = session.get('calendar_id')
     
-    nuevo_plan = request.form.get('plan') # 'pay_per_use', 'estandar', 'alto'
+    # Obtener los datos enviados en formato JSON desde el modal
+    data = request.get_json() or {}
+    nuevo_plan = data.get('plan') # Recibe 'comisionista', 'profesional', o 'v_plus'
+    
+    if not nuevo_plan:
+        return jsonify({"status": "error", "message": "No se especificó el plan"}), 400
     
     try:
         # Actualizar en la tabla Doctores de Supabase
         supabase.table('Doctores').update({'plan_seleccionado': nuevo_plan}).eq('id', doctor_actual).execute()
         return jsonify({"status": "success", "mensaje": "Plan actualizado correctamente"})
     except Exception as e:
+        print(f"Error al actualizar plan: {e}", flush=True)
         return jsonify({"status": "error", "message": str(e)}), 500
-    
+        
 @app.route('/change-password', methods=['GET', 'POST'])
 def change_password():
     if 'user_id' not in session:
