@@ -139,7 +139,7 @@ def enviar_recordatorios_hora():
     try:
         zona_mexico = pytz.timezone('America/Mexico_City')
         ahora = datetime.now(zona_mexico)
-        
+
         response = supabase.table("Doctores").select("*").execute()
         doctores = response.data if response.data else []
 
@@ -150,6 +150,12 @@ def enviar_recordatorios_hora():
         for doc in doctores:
             cal_id = doc.get("calendar_id") or doc.get("email")
             if not cal_id:
+                continue
+            
+            # CANDADO DE CITAS POR PLAN
+            permiso_candado, mensaje_candado = verificar_candado_permite_envio(cal_id)
+            if not permiso_candado:
+                log(f"Candado activo para {cal_id}: {mensaje_candado}")
                 continue
             
             calendario = obtener_servicio_calendar_por_doctor(cal_id)
