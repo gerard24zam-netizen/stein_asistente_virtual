@@ -788,7 +788,7 @@ def procesar_desde_supabase():
             ).execute().get('items', [])
         except Exception as e:
             log(f"Error leyendo calendario {cal_id}: {e}")
-            continue)
+            continue
 
         if es_fecha_excepcion and not es_dia_laboral_normal:
             fechas_pendientes = [f.strip() for f in trabajar_fechas_str.split(",") if f.strip() and f.strip() != fecha_hoy]
