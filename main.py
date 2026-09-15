@@ -591,6 +591,19 @@ def dashboard():
                 nombre_plan = "Comisionista"
                 precio_final = total_mensajes_facturables * 15.0
 
+            # --- NUEVO: Lógica del candado para el panel ---
+            limites_planes = {
+                'profesional': 60,
+                'v_plus': 125
+            }
+            limite_plan = limites_planes.get(plan_seleccionado, 0)
+            candado_activo = False
+            
+            # Si tiene un plan fijo y ya alcanzó o superó el tope del mes
+            if plan_seleccionado in limites_planes and total_mensajes_facturables >= limite_plan:
+                candado_activo = True
+            # -----------------------------------------------
+
     except Exception as e:
         import traceback
         print(f"Error crítico en dashboard: {e}", flush=True)
