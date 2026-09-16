@@ -57,12 +57,12 @@ def limpiar_telefono(tel):
 
 def verificar_candado_permite_envio(calendar_id):
     # 1. Consultar el plan seleccionado del doctor en Supabase
-    res_doc = supabase.table('Doctores').select('plan_seleccionado, plan').eq('calendar_id', calendar_id).execute()
+    res_doc = supabase.table('Doctores').select('plan').eq('calendar_id', calendar_id).execute()
     if not res_doc.data:
         return False, "Doctor no encontrado"
     
     doc_info = res_doc.data[0]
-    plan = doc_info.get('plan_seleccionado') or doc_info.get('plan', 'comisionista')
+    plan = doc_info.get('plan', 'comisionista')
     
     # El plan Comisionista NO tiene candado de bloqueo (pago por uso libre)
     if plan == 'comisionista':
