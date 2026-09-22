@@ -643,7 +643,7 @@ def actualizar_plan():
     
     try:
         # Actualizar en la tabla Doctores de Supabase
-        supabase.table('Doctores').update({'plan_seleccionado': nuevo_plan}).eq('id', doctor_actual).execute()
+        supabase.table('Doctores').update({'plan': nuevo_plan}).eq('id', doctor_actual).execute()
         return jsonify({"status": "success", "mensaje": "Plan actualizado correctamente"})
     except Exception as e:
         print(f"Error al actualizar plan: {e}", flush=True)
