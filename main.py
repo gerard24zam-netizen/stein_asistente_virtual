@@ -1173,7 +1173,7 @@ def procesar_webhook_asincrono(data):
                     enviar_mensaje(telefono_cliente, "text", contenido=resp_doc)
                     return
             
-            if any(k in texto for k in ["sí, confirmar", "confirmar", "si"]):
+            if any(k in texto for k in ["si, confirmar", "confirmar", "si", "si, confirmo", "confirmo", "confirmado", "ok", "ahi nos vemos", "esta bien"]):
                 # --- SUSTITUIMOS SOLO LA BÚSQUEDA CIEGA POR DESAMBIGUACIÓN INTELIGENTE ---
                 zona_mexico = pytz.timezone('America/Mexico_City')
                 ahora = datetime.now(zona_mexico)
@@ -1251,7 +1251,7 @@ def procesar_webhook_asincrono(data):
               
             # ----------------------------------------------------------------------------------
             
-            elif any(k in texto for k in ["no", "reagendar", "cancelar"]):
+            elif any(k in texto for k in ["no", "reagendar", "cancelar", "no, cancelar", "cambiar", "no, cancelar"]):
                 # --- SUSTITUIMOS SOLO LA BÚSQUEDA CIEGA POR DESAMBIGUACIÓN INTELIGENTE ---
                 zona_mexico = pytz.timezone('America/Mexico_City')
                 ahora = datetime.now(zona_mexico)
