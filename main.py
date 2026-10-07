@@ -139,109 +139,65 @@ def enviar_recordatorios_hora():
     try:
         zona_mexico = pytz.timezone('America/Mexico_City')
         ahora = datetime.now(zona_mexico)
-
-        response = supabase.table("Doctores").select("*").execute()
-        doctores = response.data if response.data else []
-
+        fecha_hoy = ahora.strftime('%Y-%m-%d')
+        
+        # Consultamos únicamente los recordatorios activos para el día de hoy
+        res = supabase.table('recordatorios_activos') \
+            .select('*') \
+            .eq('fecha_cita', fecha_hoy) \
+            .execute()
+            
+        recordatorios = res.data if res.data else []
         citas_notificadas = 0
-        inicio = ahora.replace(hour=0, minute=0, second=0).astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
-        fin = ahora.replace(hour=23, minute=59, second=59).astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
 
-        for doc in doctores:
-            cal_id = doc.get("calendar_id") or doc.get("email")
-            if not cal_id:
-                continue
+        for rec in recordatorios:
+            telefono = rec.get('telefono_paciente')
+            nombre_paciente = rec.get('nombre_paciente', 'Paciente')
+            doctor_id = rec.get('doctor_id')
+            hora_cita_str = rec.get('hora_cita') # Espera formato 'HH:MM'
+            rec_id = rec.get('id')
             
-            # CANDADO DE CITAS POR PLAN
-            permiso_candado, mensaje_candado = verificar_candado_permite_envio(cal_id)
-            if not permiso_candado:
-                log(f"Candado activo para {cal_id}: {mensaje_candado}")
+            if not hora_cita_str or not telefono:
                 continue
-            
-            calendario = obtener_servicio_calendar_por_doctor(cal_id)
-            if not calendario:
-                continue
-            
-            try:
-                eventos = calendario.events().list(calendarId=cal_id, timeMin=inicio, timeMax=fin, singleEvents=True).execute().get('items', [])
-            except Exception:
-                continue
-
-            for evento in eventos:
-                start_dt = evento.get('start', {}).get('dateTime')
-                if not start_dt:
-                    continue
                 
-                dt_cita = datetime.fromisoformat(start_dt).astimezone(zona_mexico)
-                diferencia_minutos = (dt_cita - ahora).total_seconds() / 60
+            # Combinar fecha de hoy con la hora de la cita
+            hora_partes = hora_cita_str.split(':')
+            dt_cita = ahora.replace(hour=int(hora_partes[0]), minute=int(hora_partes[1]), second=0, microsecond=0)
+            
+            # Calcular diferencia en minutos
+            diferencia_minutos = (dt_cita - ahora).total_seconds() / 60
 
-                # 1. Ventana estricta de 40 min a 2 hrs antes (120 minutos)
-                if 40 <= diferencia_minutos <= 120:
-                    titulo = evento.get('summary', '')
-                    if "✅" in titulo or "❌" in titulo or "cancelado" in titulo.lower() or "⏰" in titulo:
-                        continue
+            # Ventana estricta solicitada: de 60 a 90 minutos antes
+            if 60 <= diferencia_minutos <= 90:
+                # Obtenemos los datos del profesional para personalizar el mensaje
+                res_doc = supabase.table("Doctores").select("*").eq("calendar_id", doctor_id).execute()
+                doc_info = res_doc.data[0] if res_doc.data else {}
+                nombre_profesional = doc_info.get("name") or doc_info.get("nombre") or "su profesional"
+
+                mensaje = (
+                    f"Hola *{nombre_paciente}*, te recordamos que tu cita con "
+                    f"*{nombre_profesional}* está por comenzar a las *{hora_cita_str}*. "
+                    f"Recuerda preveer el monto exacto de tu sesión. ¡Te esperamos!\n\n"
+                    f"*Stein A. V. P.*"
+                )
+
+                exito = enviar_mensaje(telefono, "text", contenido=mensaje)
+                if exito and exito.status_code < 400:
+                    # Eliminamos el registro de activos para evitar reenvíos en el mismo día
+                    try:
+                        supabase.table('recordatorios_ativos').delete().eq('id', rec_id).execute()
+                    except Exception as e:
+                        log(f"Error al limpiar recordatorio activo: {e}")
                     
-                    texto = f"{titulo} {evento.get('description', '')}"
-                    digitos = "".join(filter(str.isdigit, texto))
-                    if len(digitos) < 10:
-                        continue
-                    
-                    telefono = "52" + digitos[-10:]
-                    evento_id = evento.get('id')
-
-                    # 2. VALIDAR CONFIRMACIÓN: Verificar en Supabase si esta cita ya tiene confirmado = True
-                    # Buscamos en metricas_y_registros si existe un registro asociado a este doctor/evento con confirmación positiva
-                    res_confirmacion = supabase.table('metricas_y_registros') \
-                        .select('*') \
-                        .eq('calendar_id', cal_id) \
-                        .eq('confirmado', True) \
-                        .execute()
-                    
-                    # Opcional: si guardas algún identificador del paciente o teléfono, puedes afinar el filtro. 
-                    # Si la lista de confirmados trae registros, validamos que proceda.
-                    if not res_confirmacion.data:
-                        continue  # Si no está confirmado en Supabase, no se envía el recordatorio
-
-                    # 3. EVITAR REPETICIÓN: Verificar si el recordatorio de esta hora ya fue enviado previamente hoy
-                    res_duplicado = supabase.table('metricas_y_registros') \
-                        .select('*') \
-                        .eq('calendar_id', cal_id) \
-                        .eq('estado_accion', f'recordatorio_enviado_{evento_id}') \
-                        .execute()
-                    
-                    if res_duplicado.data:
-                        continue  # Ya se mandó el mensaje para este evento, se salta para evitar spam
-
-                    nombre_paciente = extraer_nombre_limpio(titulo)
-                    nombre_profesional = doc.get("name") or doc.get("nombre") or "doctor"
-
-                    mensaje = (
-                        f"Hola *{nombre_paciente}*, te recordamos que tu cita con "
-                        f"*{nombre_profesional}* esta por comenzar. Recuerda llevar el monto de tu sesión. ¡Te esperamos!\n\n"
-                        f"*Stein A. V. P.*"
-                    )
-
-                    exito = enviar_mensaje(telefono, "text", contenido=mensaje)
-                    if exito and exito.status_code < 400:
-                        try:
-                            # 4. Registrar el envío para bloquear futuros reenvíos en el mismo ciclo
-                            supabase.table('metricas_y_registros').insert({
-                                'calendar_id': cal_id,
-                                'estado_accion': f'recordatorio_enviado_{evento_id}',
-                                'confirmado': True
-                            }).execute()
-                        except Exception as e:
-                            log(f"Error guardando registro de recordatorio enviado: {e}")
-
-                        citas_notificadas += 1
+                    citas_notificadas += 1
 
         return jsonify({
             "status": "success",
-            "mensaje": f"Recordatorios de 1 hora enviados: {citas_notificadas}"
+            "mensaje": f"Recordatorios enviados correctamente: {citas_notificadas}"
         }), 200
 
     except Exception as e:
-        print(f"Error al procesar recordatorios por hora: {e}")
+        print(f"Error en recordatorios por hora: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
         
 # --- RUTAS DE GOOGLE OAUTH ---
@@ -1247,7 +1203,7 @@ def procesar_webhook_asincrono(data):
                     
                     tel_doc = "".join(filter(str.isdigit, str(wa_link)))
                     if tel_doc:
-                        enviar_mensaje(tel_doc, "text", contenido=f"✅ El paciente *{nombre_paciente}* ha confirmado su cita de hoy.")
+                        enviar_mensaje(tel_doc, "text", contenido=f"✅ El paciente *{nombre_paciente}* ha confirmado su cita de hoy a las *{hora_cita_str}*.")
               
             # ----------------------------------------------------------------------------------
             
@@ -1324,7 +1280,7 @@ def procesar_webhook_asincrono(data):
                     
                     tel_doc = "".join(filter(str.isdigit, str(wa_link)))
                     if tel_doc:
-                        enviar_mensaje(tel_doc, "text", contenido=f"❌ El paciente *{nombre_paciente}* indicó que necesita reagendar su cita de hoy.\n *IMPORTANTE* comunicate con él, para que no pierda su cita.")
+                        enviar_mensaje(tel_doc, "text", contenido=f"❌ El paciente *{nombre_paciente}* indicó que necesita reagendar su cita de hoy a las *{hora_cita_str}*.\n *IMPORTANTE* comunicate con él, para que no pierda su cita.")
             
             elif not doc_encontrado:
                 match_cal = re.search(r'\b([1-9]|10)\b', texto)
