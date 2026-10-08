@@ -1197,6 +1197,18 @@ def procesar_webhook_asincrono(data):
                         }).execute()
                     except Exception as e:
                         log(f"Error guardando métrica de confirmación en Supabase: {e}")
+                        
+                    # NUEVO: Insertar en recordatorios_ativos para el recordatorio de la hora
+                    try:
+                        supabase.table('recordatorios_ac*tivos').insert({
+                            'telefono_paciente': telefono_cliente,
+                            'doctor_id': doc_cal_id,
+                            'nombre_paciente': nombre_paciente,
+                            'fecha_cita': mas_cercana["dt"].strftime('%Y-%m-%d'),
+                            'hora_cita': mas_cercana["dt"].strftime('%H:%M')
+                        }).execute()
+                    except Exception as e:
+                        log(f"Error al registrar recordatorio activo: {e}")
 
                     respuesta_texto = f"*¡Perfecto!* Se ha confirmado tu cita de hoy con {doc_nombre}. Dudas o aclaraciones, comunícate aquí: {wa_link}.\n*Nota: Recuerda prepararte para epoca de lluvias*\n *¡Que tenga un excelente día!*"
                     enviar_mensaje(telefono_cliente, "text", contenido=respuesta_texto)
@@ -1274,6 +1286,17 @@ def procesar_webhook_asincrono(data):
                         }).execute()
                     except Exception as e:
                         log(f"Error guardando métrica de cancelación en Supabase: {e}")
+
+                    # Cuando el paciente cancela la cita:
+                    try:
+                        supabase.table('recordatorios_activos') \
+                            .delete() \
+                            .eq('telefono_paciente', telefono_cliente) \
+                            .eq('doctor_id', doc_cal_id) \
+                            .execute()
+                        print("Cita eliminada de recordatorios_ativos por cancelación")
+                    except Exception as e:
+                        log(f"Error al limpiar recordatorio por cancelación: {e}")
 
                     respuesta_texto = f"*Se ha cancelado tu cita.* Para reagendar, por favor comunícate con *{doc_nombre}*.\n *Da clic en el link de Whatsapp* aquí: {wa_link} con gusto atenderemos tu solicitud.\n *¡Que tenga un excelente día!*"
                     enviar_mensaje(telefono_cliente, "text", contenido=respuesta_texto)
