@@ -185,7 +185,7 @@ def enviar_recordatorios_hora():
                 if exito and exito.status_code < 400:
                     # Eliminamos el registro de activos para evitar reenvíos en el mismo día
                     try:
-                        supabase.table('recordatorios_ativos').delete().eq('id', rec_id).execute()
+                        supabase.table('recordatorios_activos').delete().eq('id', rec_id).execute()
                     except Exception as e:
                         log(f"Error al limpiar recordatorio activo: {e}")
                     
