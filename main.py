@@ -1187,6 +1187,10 @@ def procesar_webhook_asincrono(data):
                     doc_nombre = doc.get("name") or doc.get("nombre") or "Doctor"
                     doc_cal_id = doc.get("calendar_id")
                     wa_link = doc.get("wa_link") or doc.get("link") or ""
+
+                    # Definimos la hora y fecha en formato texto aquí mismo para usarla sin errores
+                    hora_cita_str = mas_cercana["dt"].strftime('%H:%M')
+                    fecha_cita_str = mas_cercana["dt"].strftime('%Y-%m-%d')
                     
                     # NUEVO: Registro en la tabla de métricas y registros unificada
                     try:
@@ -1200,12 +1204,12 @@ def procesar_webhook_asincrono(data):
                         
                     # NUEVO: Insertar en recordatorios_ativos para el recordatorio de la hora
                     try:
-                        supabase.table('recordatorios_ac*tivos').insert({
+                        supabase.table('recordatorios_activos').insert({
                             'telefono_paciente': telefono_cliente,
                             'doctor_id': doc_cal_id,
                             'nombre_paciente': nombre_paciente,
-                            'fecha_cita': mas_cercana["dt"].strftime('%Y-%m-%d'),
-                            'hora_cita': mas_cercana["dt"].strftime('%H:%M')
+                            'fecha_cita': fecha_cita_str,
+                            'hora_cita': hora_cita_str
                         }).execute()
                     except Exception as e:
                         log(f"Error al registrar recordatorio activo: {e}")
