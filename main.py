@@ -167,7 +167,14 @@ def enviar_recordatorios_hora():
             # Calcular diferencia en minutos
             diferencia_minutos = (dt_cita - ahora).total_seconds() / 60
 
-            # Ventana estricta solicitada: de 60 a 90 minutos antes
+            # --- ÚNICO AGREGADO: Limpiar si la cita de hoy ya pasó ---
+            if diferencia_minutos < -10:
+                try:
+                    supabase.table('recordatorios_activos').delete().eq('id', rec_id).execute()
+                except Exception as e:
+                    log(f"Error al limpiar cita vencida: {e}")
+                continue
+                
             if 60 <= diferencia_minutos <= 90:
                 # Obtenemos los datos del profesional para personalizar el mensaje
                 res_doc = supabase.table("Doctores").select("*").eq("calendar_id", doctor_id).execute()
