@@ -1033,7 +1033,7 @@ def procesar_webhook_asincrono(data):
                 doc_cal_id = doc_encontrado.get("calendar_id")
 
                 if any(k in texto for k in ["empecemos"]):
-                    resp_doc = '¡Perfecto! es un buen momento para empezar el día, "Stein tu Asistente Virtual" *activado*. \n *nota: Recuerda prepararte para epoca de lluvias*'
+                    resp_doc = '¡Perfecto! es un buen momento para empezar el día, "Stein tu Asistente Virtual" *activado*. \n *¡Ve preparando los dulces! 🎃🧛🏻🐈‍⬛*'
                     enviar_mensaje(telefono_cliente, "text", contenido=resp_doc)
                     return
 
@@ -1221,7 +1221,7 @@ def procesar_webhook_asincrono(data):
                     except Exception as e:
                         log(f"Error al registrar recordatorio activo: {e}")
 
-                    respuesta_texto = f"*¡Perfecto!* Se ha confirmado tu cita de hoy con {doc_nombre}. Dudas o aclaraciones, comunícate aquí: {wa_link}.\n*Nota: Recuerda prepararte para epoca de lluvias*\n *¡Que tenga un excelente día!*"
+                    respuesta_texto = f"*¡Perfecto!* Se ha confirmado tu cita de hoy con {doc_nombre}. Dudas o aclaraciones, comunícate aquí: {wa_link}.\n*¿Listos para los dulces? 🎃🧛🏻🐈‍⬛*\n *¡Que tenga un excelente día!*"
                     enviar_mensaje(telefono_cliente, "text", contenido=respuesta_texto)
                     
                     tel_doc = "".join(filter(str.isdigit, str(wa_link)))
@@ -1313,7 +1313,7 @@ def procesar_webhook_asincrono(data):
                     except Exception as e:
                         log(f"Error al limpiar recordatorio por cancelación: {e}")
 
-                    respuesta_texto = f"*Se ha cancelado tu cita.* Para reagendar, por favor comunícate con *{doc_nombre}*.\n *Da clic en el link de Whatsapp* aquí: {wa_link} con gusto atenderemos tu solicitud.\n *¡Que tenga un excelente día!*"
+                    respuesta_texto = f"*Se ha cancelado tu cita.* Para reagendar, por favor comunícate con *{doc_nombre}*.\n *Da clic en el link de Whatsapp* aquí: {wa_link} con gusto atenderemos tu solicitud.\n *¡Que tenga un excelente día!🎃*"
                     enviar_mensaje(telefono_cliente, "text", contenido=respuesta_texto)
                     
                     tel_doc = "".join(filter(str.isdigit, str(wa_link)))
