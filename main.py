@@ -1230,7 +1230,7 @@ def procesar_webhook_asincrono(data):
               
             # ----------------------------------------------------------------------------------
             
-            elif any(k in texto for k in ["no", "reagendar", "cancelar", "no, cancelar", "cambiar", "no, cancelar"]):
+            elif any(k in texto for k in ["no", "reagendar", "cancelar", "no, cancelar", "cambiar", "no, cancelar", "sali", "salí", "salir"]):
                 # --- SUSTITUIMOS SOLO LA BÚSQUEDA CIEGA POR DESAMBIGUACIÓN INTELIGENTE ---
                 zona_mexico = pytz.timezone('America/Mexico_City')
                 ahora = datetime.now(zona_mexico)
@@ -1271,6 +1271,10 @@ def procesar_webhook_asincrono(data):
                     doc = mas_cercana["doc"]
                     cal_id_encontrado = mas_cercana["cal_id"]
                     evento_encontrado = mas_cercana["evento"]
+
+                    # Aseguramos que la hora y fecha estén siempre disponibles
+                    hora_cita_str = mas_cercana["dt"].strftime('%H:%M')
+                    fecha_cita_str = mas_cercana["dt"].strftime('%Y-%m-%d')
                     
                     sum_act = evento_encontrado.get('summary', '')
                     nombre_paciente = extraer_nombre_limpio(sum_act) if 'extraer_nombre_limpio' in globals() else sum_act
