@@ -1230,7 +1230,7 @@ def procesar_webhook_asincrono(data):
               
             # ----------------------------------------------------------------------------------
             
-            elif any(k in texto for k in ["no", "reagendar", "cancelar", "no, cancelar", "cambiar", "no, cancelar", "sali", "salí", "salir"]):
+            elif any(k in texto for k in ["no", "reagendar", "cancelar", "no, cancelar", "cambiar", "no, cancelar", "sali", "salí", "salir", "mañana", "mal", "otro día"]):
                 # --- SUSTITUIMOS SOLO LA BÚSQUEDA CIEGA POR DESAMBIGUACIÓN INTELIGENTE ---
                 zona_mexico = pytz.timezone('America/Mexico_City')
                 ahora = datetime.now(zona_mexico)
