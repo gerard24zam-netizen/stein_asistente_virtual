@@ -461,6 +461,11 @@ def dashboard():
     total_mensajes_facturables = 0
     costo_base_meta = 0.0
     precio_final_cliente = 0.0
+    meses_es = {
+        1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+        7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"
+    }
+    texto_ciclo = "Ciclo mensual"
 
     hoy_str = date.today().isoformat()  # Fecha actual en formato "YYYY-MM-DD"
 
@@ -493,10 +498,23 @@ def dashboard():
                 inicio_ciclo = date(prev_year, prev_month, min(reg_day, last_day_prev))
             
             inicio_mes_str = inicio_ciclo.isoformat()
+            if inicio_ciclo.month == 12:
+                next_year, next_month = inicio_ciclo.year + 1, 1
+            else:
+                next_year, next_month = inicio_ciclo.year, inicio_ciclo.month + 1
+            last_day_next = calendar.monthrange(next_year, next_month)[1]
+            fin_ciclo = date(next_year, next_month, min(reg_day, last_day_next))
+            texto_ciclo = f"Del {inicio_ciclo.day} {meses_es[inicio_ciclo.month]} al {fin_ciclo.day} {meses_es[fin_ciclo.month]}"
         else:
             # Fallback al primer día del mes actual si no se encuentra la fecha de registro
             inicio_mes_str = date.today().replace(day=1).isoformat()
-            
+            today = date.today()
+            inicio_ciclo = today.replace(day=1)
+            if today.month == 12:
+                fin_ciclo = date(today.year + 1, 1, 1)
+            else:
+                fin_ciclo = date(today.year, today.month + 1, 1)
+            texto_ciclo = f"Del {inicio_ciclo.day} {meses_es[inicio_ciclo.month]} al {fin_ciclo.day} {meses_es[fin_ciclo.month]}"
 
         # 2. Consultar la tabla unificada metricas_y_registros en Supabase
         response_uso = supabase.table('metricas_y_registros').select('*').eq('calendar_id', calendar_id).execute()
@@ -576,6 +594,7 @@ def dashboard():
     metricas = {
         "citas_enviadas_global": enviadas_global,
         "citas_enviadas_mes": enviadas_mes,
+        "texto_ciclo": texto_ciclo,
         "citas_confirmadas": confirmadas_hoy,
         "citas_canceladas": canceladas_hoy,
         "promedio_satisfaccion": f"{promedio} / 10",
