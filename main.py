@@ -496,6 +496,7 @@ def dashboard():
         else:
             # Fallback al primer día del mes actual si no se encuentra la fecha de registro
             inicio_mes_str = date.today().replace(day=1).isoformat()
+            
 
         # 2. Consultar la tabla unificada metricas_y_registros en Supabase
         response_uso = supabase.table('metricas_y_registros').select('*').eq('calendar_id', calendar_id).execute()
