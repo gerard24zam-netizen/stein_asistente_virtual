@@ -466,6 +466,7 @@ def dashboard():
         7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic"
     }
     texto_ciclo = "Ciclo mensual"
+    fecha_miembro = "Histórico total acumulado"
 
     hoy_str = date.today().isoformat()  # Fecha actual en formato "YYYY-MM-DD"
 
@@ -480,6 +481,7 @@ def dashboard():
 
         if created_str:
             created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00')).date()
+            fecha_miembro = f"Miembro desde {created_dt.day} {meses_es[created_dt.month]} {created_dt.year}"
             reg_day = created_dt.day
             
             today = date.today()
@@ -595,6 +597,7 @@ def dashboard():
         "citas_enviadas_global": enviadas_global,
         "citas_enviadas_mes": enviadas_mes,
         "texto_ciclo": texto_ciclo,
+        "fecha_miembro": fecha_miembro,
         "citas_confirmadas": confirmadas_hoy,
         "citas_canceladas": canceladas_hoy,
         "promedio_satisfaccion": f"{promedio} / 10",
